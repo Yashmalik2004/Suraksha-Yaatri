@@ -7,6 +7,7 @@ import io, { Socket } from "socket.io-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertTriangle,
   Users,
@@ -15,6 +16,7 @@ import {
   Clock,
   CheckCircle,
   LogOut,
+  Zap,
 } from "lucide-react";
 import AdminNavigation from "@/components/AdminNavigation";
 import SplashScreen from "@/components/SplashScreen";
@@ -33,11 +35,24 @@ interface Alert {
   resolved_at?: string;
 }
 
+interface DetectedWeapon {
+  type: string;
+  location: string;
+  confidence: number;
+  timestamp: string;
+  latitude: number;
+  longitude: number;
+}
+
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const [showSplash, setShowSplash] = useState(false);
   const [activeAlerts, setActiveAlerts] = useState<Alert[]>([]);
   const [resolvedAlerts, setResolvedAlerts] = useState<Alert[]>([]);
+  const [showWeaponScanModal, setShowWeaponScanModal] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [detectedWeapons, setDetectedWeapons] = useState<DetectedWeapon[]>([]);
+  const [scanStatus, setScanStatus] = useState("Initializing scan...");
   const lastAlertTimeRef = useRef<number>(0);
   const socketRef = useRef<Socket | null>(null);
 
@@ -98,6 +113,42 @@ const AdminDashboard = () => {
       setActiveAlerts((prev) => [alert, ...prev].slice(0, 20));
     });
 
+    // Weapon detection events from scan
+    socket.on("weapon-detected", (weapon: DetectedWeapon) => {
+      console.log("🔫 Weapon Detected:", weapon);
+      setDetectedWeapons((prev) => [weapon, ...prev]);
+      // Automatically add to active alerts
+      const alert: Alert = {
+        id: Date.now(),
+        type: "weapon",
+        status: "active",
+        location: weapon.location,
+        latitude: weapon.latitude,
+        longitude: weapon.longitude,
+        created_at: new Date().toISOString(),
+      };
+      setActiveAlerts((prev) => [alert, ...prev].slice(0, 20));
+    });
+
+    // Scan start/stop events
+    socket.on("scan-started", () => {
+      setScanStatus("Scan started... Initializing camera and AI model");
+    });
+
+    socket.on("scan-status", (data: { message: string }) => {
+      setScanStatus(data.message);
+    });
+
+    socket.on("scan-complete", () => {
+      setIsScanning(false);
+      setScanStatus("Scan complete");
+    });
+
+    socket.on("scan-error", (data: { error: string }) => {
+      setIsScanning(false);
+      setScanStatus(`Error: ${data.error}`);
+    });
+
     // Resolved alerts
     socket.on("alert-resolved", ({ alert }: { alert: Alert }) => {
       setActiveAlerts((prev) => prev.filter((a) => a.id !== alert.id));
@@ -141,6 +192,42 @@ const AdminDashboard = () => {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("❌ Download error:", err);
+    }
+  };
+
+  const handleStartWeaponScan = async () => {
+    try {
+      setShowWeaponScanModal(true);
+      setIsScanning(true);
+      setDetectedWeapons([]);
+      setScanStatus("Initializing scan...");
+
+      const response = await fetch(`${API_URL}/ai/weapon-scan`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        setScanStatus(`Error: ${response.statusText}`);
+        setIsScanning(false);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("✅ Weapon scan response:", data);
+    } catch (err) {
+      console.error("❌ Weapon scan error:", err);
+      setScanStatus(`Error: ${err instanceof Error ? err.message : "Unknown error"}`);
+      setIsScanning(false);
+    }
+  };
+
+  const handleStopWeaponScan = async () => {
+    try {
+      await fetch(`${API_URL}/ai/stop-scan`, { method: "POST" });
+      setIsScanning(false);
+      setScanStatus("Scan stopped");
+    } catch (err) {
+      console.error("❌ Stop scan error:", err);
     }
   };
 
@@ -199,9 +286,20 @@ const AdminDashboard = () => {
             <p className="text-authority-foreground/80">Emergency Management Dashboard</p>
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
-          <LogOut className="h-6 w-6 text-destructive" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="warning" 
+            size="sm" 
+            onClick={handleStartWeaponScan}
+            className="flex items-center gap-2"
+          >
+            <Zap className="h-4 w-4" />
+            Start Weapon Scan
+          </Button>
+          <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
+            <LogOut className="h-6 w-6 text-destructive" />
+          </Button>
+        </div>
       </header>
 
       <main className="flex-1 p-4 pb-20 space-y-6">
@@ -340,6 +438,91 @@ const AdminDashboard = () => {
           </Card>
         </div>
       </main>
+
+      {/* Weapon Scan Modal */}
+      <Dialog open={showWeaponScanModal} onOpenChange={setShowWeaponScanModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-warning" />
+              Weapon Detection Scan
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Scan Status */}
+            <div className="p-4 bg-accent rounded-lg border border-border">
+              <p className="text-sm font-medium">Status: {scanStatus}</p>
+              {isScanning && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full"></div>
+                  <span className="text-xs text-muted-foreground">Scanning in progress...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Detected Weapons */}
+            <div>
+              <h3 className="text-sm font-semibold mb-2">
+                Detected Weapons ({detectedWeapons.length})
+              </h3>
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {detectedWeapons.length === 0 ? (
+                  <p className="text-sm text-muted-foreground italic">
+                    No weapons detected yet...
+                  </p>
+                ) : (
+                  detectedWeapons.map((weapon, index) => (
+                    <div
+                      key={index}
+                      className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {weapon.type.toUpperCase()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Location: {weapon.location}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Confidence: {(weapon.confidence * 100).toFixed(1)}%
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Coordinates: {weapon.latitude.toFixed(6)}, {weapon.longitude.toFixed(6)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Time: {new Date(weapon.timestamp).toLocaleTimeString()}
+                          </p>
+                        </div>
+                        <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-1" />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowWeaponScanModal(false);
+                  if (isScanning) handleStopWeaponScan();
+                }}
+              >
+                Close
+              </Button>
+              {isScanning && (
+                <Button variant="destructive" onClick={handleStopWeaponScan}>
+                  Stop Scan
+                </Button>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AdminNavigation currentPage="dashboard" />
     </div>

@@ -26,7 +26,6 @@ router.post("/register", registerValidation, async (req, res) => {
 // --- Login user/admin ---
 router.post("/login", loginValidation, userController.login);
 
-// --- Verify Blockchain ID (for admin) ---
 router.get("/verify/:blockchainId", async (req, res) => {
   const { blockchainId } = req.params;
   try {
@@ -41,7 +40,6 @@ router.get("/verify/:blockchainId", async (req, res) => {
 
     const user = rows[0];
 
-    // Mock blockchain details (replace with real blockchain integration if needed)
     const blockchainDetails = {
       blockNumber: "856743",
       transactionHash: "0x9b2f8a3c1e5d7g9h2k4l6m8n0p1q3r5s7t9u1v3w5x7y9z",

@@ -96,6 +96,19 @@ CREATE TABLE IF NOT EXISTS admins (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Create danger_zones table
+CREATE TABLE IF NOT EXISTS danger_zones (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(100),
+    severity ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
+    shape VARCHAR(50),
+    coordinates JSON,
+    radius DECIMAL(10, 2),
+    status ENUM('active', 'inactive') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert sample data
 INSERT IGNORE INTO users (id, username, email, password_hash, blockchain_id, phone_number) VALUES 
 (1, 'testuser', 'test@example.com', '$2b$10$example_hash', 'blockchain123', '+1234567890');

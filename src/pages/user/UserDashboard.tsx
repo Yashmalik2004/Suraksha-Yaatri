@@ -196,7 +196,7 @@ const UserDashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold">SafePath Dashboard</h1>
+        <h1 className="text-lg font-bold">Suraksha Yaatri Dashboard</h1>
         <Bell className="h-5 w-5 text-primary" />
       </header>
 

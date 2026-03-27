@@ -117,7 +117,7 @@ const UserProfile = () => {
             </div>
             <div className="text-center">
               <h2 className="text-xl font-semibold">{profileData.name}</h2>
-              <p className="text-muted-foreground">SafePath</p>
+              <p className="text-muted-foreground">Suraksha Yaatri</p>
             </div>
           </CardContent>
         </Card>

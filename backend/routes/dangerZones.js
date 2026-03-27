@@ -11,8 +11,8 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   const { name, type, severity, shape, coordinates, radius, status } = req.body;
   const [result] = await db.promise().query(
-    "INSERT INTO danger_zones (name, type, severity, shape, coordinates, radius, status, created_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    [name, type, severity, shape, coordinates, radius, status, new Date().toISOString().split("T")[0]]
+    "INSERT INTO danger_zones (name, type, severity, shape, coordinates, radius, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    [name, type, severity, shape, coordinates, radius, status]
   );
   res.json({ id: result.insertId });
 });

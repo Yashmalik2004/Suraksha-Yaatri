@@ -65,7 +65,7 @@ const Login = () => {
               <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <CardTitle>Login to SafePath</CardTitle>
+              <CardTitle>Login to Suraksha Yaatri</CardTitle>
             </div>
           </CardHeader>
 
